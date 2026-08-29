@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Status</title>
+<style>
+  :root {
+    --bg: #f6f8fa; --panel: #ffffff; --border: #e3e8ee;
+    --text: #1c2430; --muted: #66707f;
+    --up: #2da160; --down: #de3d3d; --warn: #d99a2b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f1115; --panel: #181b22; --border: #262b36; --text: #e6e9ef; --muted: #8b93a3; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 2.5rem 1rem 4rem; }
+  .banner { border-radius: 12px; padding: 1.1rem 1.3rem; font-size: 1.15rem; font-weight: 700; color: #fff; margin-bottom: 1.5rem; }
+  .banner.up { background: var(--up); }
+  .banner.down { background: var(--down); }
+  .banner small { display: block; font-weight: 400; font-size: .8rem; opacity: .85; margin-top: .2rem; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.2rem; margin-bottom: .8rem; }
+  .row { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; }
+  .name { font-weight: 600; }
+  .pct { color: var(--muted); font-size: .85rem; }
+  .state { font-size: .85rem; font-weight: 600; }
+  .state.up { color: var(--up); }
+  .state.down { color: var(--down); }
+  .days { display: flex; gap: 2px; margin-top: .7rem; }
+  .day { flex: 1; height: 26px; border-radius: 2px; background: var(--up); min-width: 3px; }
+  .day.warn { background: var(--warn); }
+  .day.down { background: var(--down); }
+  .day.none { background: var(--border); }
+  .legend { display: flex; justify-content: space-between; color: var(--muted); font-size: .72rem; margin-top: .3rem; }
+  h2 { font-size: 1rem; margin: 2rem 0 .8rem; }
+  .incident { border-left: 3px solid var(--warn); padding-left: .9rem; margin-bottom: 1rem; }
+  .incident.resolved { border-color: var(--up); }
+  .incident .t { font-weight: 600; }
+  .incident .m { color: var(--muted); font-size: .85rem; margin-top: .15rem; }
+  .incident .s { font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: var(--warn); }
+  .incident.resolved .s { color: var(--up); }
+  .foot { color: var(--muted); font-size: .75rem; margin-top: 2rem; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="banner up" id="banner">lädt …</div>
+  <div id="services"></div>
+  <h2 id="incHead" hidden>Incidents</h2>
+  <div id="incidents"></div>
+  <div class="foot" id="foot"></div>
+</div>
+
+<script>
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+const STATUS_LABEL = { investigating: 'Untersuchung läuft', identified: 'Ursache identifiziert', monitoring: 'Beobachtung', resolved: 'Behoben' };
+
+async function refresh() {
+  const res = await fetch('/api/status');
+  const data = await res.json();
+
+  const banner = document.getElementById('banner');
+  banner.className = 'banner ' + (data.allUp ? 'up' : 'down');
+  banner.innerHTML = (data.allUp ? 'Alle Systeme betriebsbereit' : 'Störung — mindestens ein Dienst ist beeinträchtigt')
+    + `<small>Stand ${new Date(data.generatedAt).toLocaleString()}${data.demo ? ' · Demo-Daten' : ''}</small>`;
+
+  const wrap = document.getElementById('services');
+  wrap.innerHTML = '';
+  for (const s of data.services) {
+    const days = s.days.length
+      ? s.days.map(d => {
+          const cls = d.uptime >= 99.9 ? '' : d.uptime >= 90 ? ' warn' : ' down';
+          return `<div class="day${cls}" title="${esc(d.day)} — ${d.uptime} %"></div>`;
+        }).join('')
+      : '<div class="day none" style="flex:none;width:100%"></div>';
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.innerHTML = `
+      <div class="row">
+        <span class="name">${esc(s.name)}</span>
+        <span>
+          <span class="pct">${s.uptimePercent === null ? '' : s.uptimePercent + ' % Uptime'}</span>
+          <span class="state ${s.up === false ? 'down' : 'up'}">${s.up === false ? '● Gestört' : '● Betriebsbereit'}</span>
+        </span>
+      </div>
+      <div class="days">${days}</div>
+      <div class="legend"><span>${s.days.length ? esc(s.days[0].day) : ''}</span><span>heute</span></div>`;
+    wrap.appendChild(div);
+  }
+
+  const inc = document.getElementById('incidents');
+  document.getElementById('incHead').hidden = !data.incidents.length;
+  inc.innerHTML = data.incidents.map(i => `
+    <div class="incident${i.status === 'resolved' ? ' resolved' : ''}">
+      <div class="s">${esc(STATUS_LABEL[i.status] || i.status)}</div>
+      <div class="t">${esc(i.title)}</div>
+      ${i.body ? `<div class="m">${esc(i.body)}</div>` : ''}
+      <div class="m">${new Date(i.createdAt).toLocaleString()}</div>
+    </div>`).join('');
+
+  document.getElementById('foot').textContent = 'Powered by status-page — selbst gehostet, ohne Abhängigkeiten.';
+}
+
+refresh();
+setInterval(refresh, 30_000);
+</script>
+</body>
+</html>
