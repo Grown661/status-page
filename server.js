@@ -45,7 +45,9 @@ function demoMonitorData() {
   return { targets, history, demo: true };
 }
 
-// Aggregiert History in Tages-Buckets (bis 90 Tage) für die Uptime-Balken
+// Aggregiert die vorhandene Check-Historie in Tages-Buckets (Cap: letzte 90 Tage).
+// Wie viele Balken es gibt, bestimmt allein die Datenbasis — uptime-monitor haelt
+// standardmaessig nur ~120 Checks (~2 h), also typischerweise 1-2 Buckets.
 function dayBuckets(history) {
   const byDay = new Map();
   for (const e of history) {

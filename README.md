@@ -1,7 +1,8 @@
 # status-page
 
-Öffentliche Status-Seite für die eigenen Dienste — Gesamtstatus, 90-Tage-Uptime-Balken
-pro Dienst und eine Incident-Timeline. Ein Node-Prozess, keine Abhängigkeiten.
+Öffentliche Status-Seite für die eigenen Dienste — Gesamtstatus, Uptime-Balken pro
+Dienst über die verfügbare Check-Historie und eine Incident-Timeline. Ein Node-Prozess,
+keine Abhängigkeiten.
 
 ## Problem
 
@@ -13,7 +14,11 @@ eine Datei Server-Code plus eine HTML-Seite.
 ## Features
 
 - **Gesamtstatus-Banner**: "Alle Systeme betriebsbereit" / "Störung"
-- Pro Dienst: Status, Uptime-%, **90-Tage-Balken** (grün/gelb/rot je Tages-Uptime)
+- Pro Dienst: Status, Uptime-% und **Uptime-Balken** (grün/gelb/rot, ein Balken pro
+  Kalendertag in der Historie). Wie weit die Balken zurückreichen, hängt allein von der
+  Datenbasis ab: `uptime-monitor` behält standardmässig nur die letzten ~120 Checks
+  à 60 s (≈ 2 Stunden) — dann zeigt die Seite also 1–2 Tages-Balken, keine 90 Tage.
+  Angezeigt werden maximal die letzten 90 Tage, wenn die Historie so weit reicht.
 - **Incident-Timeline** mit Status-Verlauf (investigating → identified → monitoring → resolved)
 - Incidents per API pflegbar, geschützt mit Bearer-Token (`ADMIN_TOKEN`, timing-safe verglichen)
 - Ohne Datenquelle zeigt die Seite stabile **Demo-Daten** — sofort vorzeigbar
