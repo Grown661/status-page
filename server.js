@@ -150,7 +150,11 @@ async function handleApi(req, res, u) {
     const incidents = await readJson(INCIDENTS_FILE, []);
     incidents.push(incident);
     await fs.mkdir(DATA_DIR, { recursive: true });
-    await fs.writeFile(INCIDENTS_FILE, JSON.stringify(incidents, null, 2), 'utf8');
+    // Atomar: erst in tmp-Datei schreiben, dann rename — ein Absturz mitten
+    // im Write kann so nie die Zieldatei korrumpieren.
+    const tmpFile = INCIDENTS_FILE + '.tmp';
+    await fs.writeFile(tmpFile, JSON.stringify(incidents, null, 2), 'utf8');
+    await fs.rename(tmpFile, INCIDENTS_FILE);
     return sendJson(res, 201, incident);
   }
 
